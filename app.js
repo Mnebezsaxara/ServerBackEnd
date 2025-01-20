@@ -1,26 +1,62 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import bookingRoutes from './routes/booking.js';
 import authRoutes from './routes/auth.js';
-import staticRoutes from './routes/static.js';
 import connectDB from './db.js';
+import dotenv from 'dotenv';
+import { errorHandler } from './middleware/errorHandler.js';
+
+// Подключение .env
+dotenv.config();
 
 // Подключение базы данных
 connectDB();
 
-
 const app = express();
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 
+// Определение текущей директории
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Middleware для обработки JSON и CORS
 app.use(express.json());
-
-// Подключение CORS
 app.use(cors()); // Разрешает запросы со всех доменов
 
-// Подключение маршрутов
-app.use('/booking', bookingRoutes); // Маршруты для бронирования
-app.use('/auth', authRoutes); // Маршруты для логина
-app.use('/', staticRoutes); // Маршруты для статических файлов
+// Указываем папку public для статических файлов
+const publicDir = path.join(__dirname, 'public');
+app.use(express.static(publicDir));
+
+// Маршруты для бронирования
+app.use('/booking', bookingRoutes);
+
+// Маршруты для авторизации
+app.use('/auth', authRoutes);
+
+// Главная страница
+app.get('/', (req, res) => {
+    res.sendFile(path.join(publicDir, 'home.html'));
+});
+
+// Маршруты для HTML-страниц без .html
+app.get('/:page', (req, res, next) => {
+    const { page } = req.params;
+    const filePath = path.join(publicDir, `${page}.html`);
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            next(); // Передаем обработку дальше, если файл не найден
+        }
+    });
+});
+
+// 404 обработка
+app.use((req, res) => {
+    res.status(404).send('Страница не найдена');
+});
 
 // Запуск сервера
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+});
