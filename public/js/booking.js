@@ -143,77 +143,76 @@
 
     // Кнопка "Обновить бронирование"
     document.getElementById("update-booking").addEventListener("click", async () => {
-        const id = prompt("Введите ID бронирования для обновления:");
-        const date = prompt("Введите новую дату (YYYY-MM-DD):");
-        const time = prompt("Введите новое время (HH:MM):");
-        const field = prompt("Введите новое поле (Поле Бекет Батыра / Поле Орынбаева):");
-        console.log('Отправляем токен:', getToken());
-
-        
-
-        if (id && date && time && field) {
-            if (!isAuthenticated()) {
-                alert("Вы должны авторизоваться, чтобы управлять бронированием.");
-                return;
+        const email = prompt("Введите ваш email:");
+        const date = prompt("Введите дату бронирования (YYYY-MM-DD):");
+        const time = prompt("Введите время бронирования (HH:MM):");
+        const field = prompt("Введите поле бронирования:");
+    
+        const newDate = prompt("Введите новую дату:");
+        const newTime = prompt("Введите новое время:");
+        const newField = prompt("Введите новое поле:");
+    
+        if (!email || !date || !time || !field) {
+            alert("Все поля обязательны для обновления.");
+            return;
+        }
+    
+        try {
+            const response = await fetch("http://localhost:8080/booking/update", {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${getToken()}`
+                },
+                body: JSON.stringify({ email, date, time, field, newDate, newTime, newField }),
+            });
+    
+            const data = await response.json();
+            if (response.ok) {
+                alert("Бронирование успешно обновлено");
+            } else {
+                alert(`Ошибка: ${data.error || "Не удалось обновить бронирование"}`);
             }
-            try {
-                const response = await fetch(`http://localhost:8080/booking/${id}`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${getToken()}`
-                    },
-                    body: JSON.stringify({ date, time, field }),
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    alert("Бронирование успешно обновлено");
-                    fetchBookings(); // Обновляем список бронирований
-                } else {
-                    alert(`Ошибка: ${data.error || "Не удалось обновить бронирование"}`);
-                }
-            } catch (error) {
-                console.error("Ошибка при обновлении бронирования:", error);
-                alert("Не удалось обновить бронирование.");
-            }
-        } else {
-            alert("Все поля должны быть заполнены.");
+        } catch (error) {
+            console.error("Ошибка при обновлении бронирования:", error);
+            alert("Не удалось обновить бронирование.");
         }
     });
-
+    
     // Кнопка "Удалить бронирование"
     document.getElementById("delete-booking").addEventListener("click", async () => {
-        const id = prompt("Введите ID бронирования для удаления:");
-        console.log('Отправляем токен:', getToken());
-
-        if (id) {
-            if (!isAuthenticated()) {
-                alert("Вы должны авторизоваться, чтобы управлять бронированием.");
-                return;
+        const email = prompt("Введите ваш email:");
+        const date = prompt("Введите дату бронирования (YYYY-MM-DD):");
+        const time = prompt("Введите время бронирования (HH:MM):");
+        const field = prompt("Введите поле бронирования:");
+    
+        if (!email || !date || !time || !field) {
+            alert("Все поля обязательны для удаления.");
+            return;
+        }
+    
+        try {
+            const response = await fetch("http://localhost:8080/booking/delete", {
+                method: "DELETE",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${getToken()}`
+                },
+                body: JSON.stringify({ email, date, time, field }),
+            });
+    
+            const data = await response.json();
+            if (response.ok) {
+                alert("Бронирование успешно удалено");
+            } else {
+                alert(`Ошибка: ${data.error || "Не удалось удалить бронирование"}`);
             }
-            try {
-                const response = await fetch(`http://localhost:8080/booking/${id}`, {
-                    method: "DELETE",
-                    headers: {
-                        "Authorization": `Bearer ${getToken()}`
-                    },
-                });
-
-                if (response.ok) {
-                    alert("Бронирование успешно удалено");
-                    fetchBookings(); // Обновляем список бронирований
-                } else {
-                    alert(`Ошибка: ${response.statusText}`);
-                }
-            } catch (error) {
-                console.error("Ошибка при удалении бронирования:", error);
-                alert("Не удалось удалить бронирование.");
-            }
-        } else {
-            alert("ID бронирования должен быть указан.");
+        } catch (error) {
+            console.error("Ошибка при удалении бронирования:", error);
+            alert("Не удалось удалить бронирование.");
         }
     });
+    
 
     // Сортировка
     document.getElementById("sort-date").addEventListener("click", () => {

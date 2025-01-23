@@ -4,10 +4,9 @@ import { authenticateToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Применяем middleware ко всем маршрутам бронирования
 router.get('/', authenticateToken, getAllBookings);
 router.post('/', authenticateToken, createBooking);
-router.put('/:id', authenticateToken, updateBooking);
-router.delete('/:id', authenticateToken, deleteBooking);
+router.put('/update', authenticateToken, updateBooking); // Чёткий маршрут для обновления
+router.delete('/delete', authenticateToken, deleteBooking); // Чёткий маршрут для удаления
 
 export default router;

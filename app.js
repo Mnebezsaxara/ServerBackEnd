@@ -6,7 +6,8 @@ import bookingRoutes from './routes/booking.js';
 import authRoutes from './routes/auth.js';
 import connectDB from './db.js';
 import dotenv from 'dotenv';
-import { errorHandler } from './middleware/errorHandler.js';
+import serverErrorHandler from './middlewares/errorHandler.js';
+
 
 // Подключение .env
 dotenv.config();
@@ -51,10 +52,14 @@ app.get('/:page', (req, res, next) => {
     });
 });
 
-// 404 обработка
-app.use((req, res) => {
-    res.status(404).send('Страница не найдена');
+// Глобальный обработчик ошибок
+app.use((req, res, next) => {
+    const error = new Error('Route not found');
+    error.status = 404;
+    next(error); // Автоматически попадёт в глобальный обработчик
 });
+
+app.use(serverErrorHandler); // Обработчик ошибок
 
 // Запуск сервера
 app.listen(PORT, () => {
