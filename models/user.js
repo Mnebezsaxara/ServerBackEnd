@@ -3,6 +3,10 @@ import mongoose from 'mongoose';
 const userSchema = mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    devices: [{
+        deviceId: { type: String, required: true },
+        token: { type: String, required: true }
+    }]
 });
 
 // Удаляем пароль из возвращаемых данных

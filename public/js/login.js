@@ -1,7 +1,10 @@
-// Обновлённый код "login.js" для авторизации
+// Обновлённый код "form.js" для двухфакторной авторизации
 const loginForm = document.getElementById('login-form');
 const registerButton = document.getElementById('register-button');
 const logoutButton = document.getElementById('logout-button');
+const otpContainer = document.getElementById('otp-container'); // Контейнер для ввода OTP
+const otpInput = document.getElementById('otp'); // Поле для ввода OTP
+const verifyOtpButton = document.getElementById('verify-otp-button'); // Кнопка для подтверждения OTP
 
 // Проверка на авторизацию
 if (localStorage.getItem('token')) {
@@ -19,22 +22,45 @@ loginForm.addEventListener('submit', async (event) => {
         const response = await fetch('http://localhost:8080/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ email, password }),
         });
 
         const data = await response.json();
 
         if (response.ok) {
-            console.log('Response from server:', data); // Лог ответа сервера
-            localStorage.setItem('token', data.token);
-            alert('Login successful');
-            logoutButton.style.display = 'block';
+            alert(data.message);
+            otpContainer.style.display = 'block'; // Показываем форму ввода OTP
         } else {
-            console.log('Error response:', data); // Лог ошибки
-            alert('Ошибка: ' + data.error);
+            alert(`Ошибка: ${data.error}`);
         }
     } catch (error) {
-        alert('Ошибка: ' + error.message);
+        alert(`Ошибка: ${error.message}`);
+    }
+});
+
+// Подтверждение OTP
+verifyOtpButton.addEventListener('click', async () => {
+    const otp = otpInput.value;
+    const email = document.getElementById('email').value;
+
+    try {
+        const response = await fetch('http://localhost:8080/auth/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, otp }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('Авторизация успешна!');
+            localStorage.setItem('token', data.token);
+            window.location.reload();
+        } else {
+            alert(`Ошибка: ${data.error}`);
+        }
+    } catch (error) {
+        alert(`Ошибка: ${error.message}`);
     }
 });
 
@@ -47,7 +73,7 @@ registerButton.addEventListener('click', async () => {
         const response = await fetch('http://localhost:8080/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ email, password }),
         });
 
         const data = await response.json();
