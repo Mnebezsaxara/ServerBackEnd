@@ -1,9 +1,13 @@
+// authController.js
 import User from '../models/user.js';
 import Otp from '../models/otp.js';
 import { sendEmail } from '../utils/mailer.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import validator from 'validator';
+import { v4 as uuidv4 } from 'uuid';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const SECRET_KEY = process.env.JWT_SECRET || 'defaultsecretkey';
 
@@ -26,22 +30,10 @@ export const login = async (req, res) => {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
 
-        const otpCountBeforeDelete = await Otp.countDocuments({ email });
-        console.log(`⚠️ Найдено OTP перед удалением: ${otpCountBeforeDelete}`);
-        await Otp.deleteMany({ email, createdAt: { $lt: new Date() } });
-        const otpCountAfterDelete = await Otp.countDocuments({ email });
-        console.log(`✅ OTP после удаления: ${otpCountAfterDelete}`);
-        
         // Генерация нового OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const newOtp = await Otp.create({ email, otp });
-        console.log(`✅ OTP сохранен: ${JSON.stringify(newOtp)}`);
-
-        const otpCheck = await Otp.findOne({ email });
-        console.log(`🔍 Проверка сохраненного OTP в базе: ${JSON.stringify(otpCheck)}`);
-
-        console.log(`Тип createdAt: ${typeof newOtp.createdAt}, значение: ${newOtp.createdAt}`);
-
+        await Otp.deleteMany({ email }); // Очистка старых OTP
+        await Otp.create({ email, otp });
 
         // Отправка OTP
         await sendEmail(email, 'Ваш код подтверждения', `Ваш код подтверждения: ${otp}`);
@@ -53,7 +45,6 @@ export const login = async (req, res) => {
     }
 };
 
-// Проверка OTP
 export const verifyOtp = async (req, res) => {
     const { email, otp } = req.body;
 
@@ -62,32 +53,43 @@ export const verifyOtp = async (req, res) => {
     }
 
     try {
-        const sanitizedOtp = otp.trim();
-        const otpRecord = await Otp.findOne({ email, otp: sanitizedOtp });
+        const otpRecord = await Otp.findOne({ email, otp });
         if (!otpRecord) {
             return res.status(400).json({ error: 'Invalid or expired OTP' });
         }
 
-        // Удаляем все OTP пользователя после успешного входа
         await Otp.deleteMany({ email });
 
-        // Генерация JWT
         const user = await User.findOne({ email });
-        const token = jwt.sign({ userId: user._id, email }, SECRET_KEY, { expiresIn: '1h' });
+        const sessionId = uuidv4();
+        const deviceId = req.headers['user-agent'];
 
-        // Определение устройства
-        const deviceId = req.headers['user-agent'] || 'unknown-device';
+        console.log(`✅ Новый sessionId: ${sessionId}, deviceId: ${deviceId}`);
 
-        // Удаляем старые токены и добавляем новый
-        await User.updateOne({ email }, { $pull: { devices: { deviceId } } }); // Удаляем старый токен этого устройства
-        await User.updateOne({ email }, { $push: { devices: { deviceId, token } } }); // Добавляем новый токен
+        // Очищаем все старые `sessionId` перед добавлением нового
+        const updateResult = await User.updateOne(
+            { email },
+            { 
+                $set: { currentSessionId: sessionId, activeSessions: [{ sessionId, deviceId }] } 
+            }
+        );
+
+        console.log(`🔹 Результат обновления:`, updateResult);
+
+        const updatedUser = await User.findOne({ email });
+        console.log(`🔹 Обновленные activeSessions:`, updatedUser.activeSessions);
+
+        const token = jwt.sign({ userId: user._id, email, sessionId, deviceId }, SECRET_KEY, { expiresIn: '1h' });
+
+        console.log(`🔹 Новый токен: ${token}`);
 
         res.status(200).json({ message: 'Авторизация успешна', token });
     } catch (error) {
-        console.error('Ошибка при проверке OTP:', error.message);
+        console.error('❌ Ошибка при проверке OTP:', error.message);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 };
+
 
 export const logout = async (req, res) => {
     const token = req.headers['authorization']?.split(' ')[1];
@@ -96,21 +98,17 @@ export const logout = async (req, res) => {
     }
 
     try {
-        const SECRET_KEY = process.env.JWT_SECRET || 'defaultsecretkey';
         const decoded = jwt.verify(token, SECRET_KEY);
-
-        // Определение устройства
-        const deviceId = req.headers['user-agent'] || 'unknown-device';
-
-        // Удаление токена из списка устройств
-        await User.updateOne({ email: decoded.email }, { $pull: { devices: { deviceId } } });
+        await User.updateOne(
+            { email: decoded.email },
+            { $pull: { activeSessions: decoded.sessionId } } // Удаляем текущую сессию
+        );
 
         res.status(200).json({ message: 'Вы успешно вышли из системы.' });
     } catch (error) {
         res.status(403).json({ error: 'Invalid token. Could not logout.' });
     }
 };
-
 
 // Регистрация пользователя
 export const registerUser = async (req, res) => {
@@ -125,7 +123,7 @@ export const registerUser = async (req, res) => {
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({ email, password: hashedPassword, devices: [] });
+        const user = new User({ email, password: hashedPassword, devices: [], activeSessions: [] });
         await user.save();
         res.status(201).json({ message: 'User registered successfully' });
     } catch (error) {

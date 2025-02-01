@@ -11,6 +11,9 @@ import connectDB from './db.js';
 // Подключение базы данных
 connectDB();
 
+console.log(`🟢 Загруженный SECRET_KEY: ${process.env.JWT_SECRET}`);
+
+
 const app = express();
 const PORT = process.env.PORT || 8080;
 
