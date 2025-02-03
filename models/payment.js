@@ -41,7 +41,7 @@ const paymentSchema = new mongoose.Schema(
           "1month12visits_day",
           "1month12visits",
           "1month_unlimited",
-          "6months_unlimited",
+          "6months_unlimited_vip",
           "1year_unlimited",
           "1year_unlimited_women",
           "single_visit",
